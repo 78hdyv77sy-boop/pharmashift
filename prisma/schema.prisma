@@ -1,0 +1,843 @@
+// ============================================================================
+//  PHARMASHIFT — PRISMA SCHEMA
+//  Multi-Tenant SaaS für Apotheken-Dienstplanung.
+//  Konventionen: jede Geschäftstabelle ist org-gescoped (orgId + Index).
+//  Soft-Delete via deletedAt auf Kern-Geschäftsdaten. Zeiten in UTC.
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum EmployeeType {
+  APOTHEKER     // approbierte:r Apotheker:in
+  PKA           // pharmazeutisch-kaufmännische:r Assistent:in
+  BUERO         // Bürobedienstete:r
+  ASPIRANT      // Aspirant:in (in Ausbildung)
+  LEHRLING      // Lehrling
+  SONSTIGE      // Sonstiges
+}
+
+enum AvailabilityType {
+  AVAILABLE
+  PREFERRED
+  UNAVAILABLE
+}
+
+enum AbsenceType {
+  VACATION
+  SICK
+  TRAINING
+  OTHER
+}
+
+enum AbsenceStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+}
+
+enum ShiftPlanStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  DECLINED
+}
+
+enum SwapStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum TaskAssignee {
+  PERSON // fest einer Person zugewiesen
+  SHIFT // wer an dem Tag/Standort Dienst hat
+}
+
+enum TaskRecurrence {
+  ONCE // einmalig (dueDate)
+  DAILY // täglich
+  WEEKLY // wöchentlich (weekday)
+  SHIFT // schichtgebunden (an Tagen mit Dienst)
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum AgentInteractionStatus {
+  PROPOSED
+  EDITED
+  EXECUTED
+  CANCELLED
+  UNDONE
+}
+
+// ---------------------------------------------------------------------------
+// AUTH (NextAuth / Auth.js)
+// ---------------------------------------------------------------------------
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  status        UserStatus @default(ACTIVE)
+  isSuperAdmin  Boolean    @default(false) // Plattform-Ebene über allen Orgs
+  locale        String     @default("de")
+  timezone      String     @default("Europe/Berlin")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  accounts          Account[]
+  sessions          Session[]
+  memberships       Membership[]
+  userRoles         UserRole[]
+  invitationsSent   Invitation[]      @relation("InvitedBy")
+  employee          Employee[]
+  auditLogs         AuditLog[]
+  agentInteractions AgentInteraction[]
+  uploadedMedia     Media[]
+  chatMessages      ChatMessage[]
+  teamMemberships   TeamMember[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@index([email])
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-TENANCY + RBAC
+// ---------------------------------------------------------------------------
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("Europe/Berlin")
+  plan      String   @default("free") // Struktur für späteres Billing
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  memberships   Membership[]
+  roles         Role[]
+  userRoles     UserRole[]
+  invitations   Invitation[]
+  locations     Location[]
+  employees     Employee[]
+  qualifications Qualification[]
+  responsibilities Responsibility[]
+  shiftTemplates ShiftTemplate[]
+  shiftPlans    ShiftPlan[]
+  shifts        Shift[]
+  pages         Page[]
+  reusableBlocks ReusableBlock[]
+  menus         Menu[]
+  media         Media[]
+  settingsKv    Setting[]
+  auditLogs     AuditLog[]
+  agentInteractions AgentInteraction[]
+  nightDuties   NightDuty[]
+  chatMessages  ChatMessage[]
+  teams         Team[]
+  shiftSwaps    ShiftSwap[]
+  tasks         Task[]
+}
+
+model Membership {
+  id        String           @id @default(cuid())
+  userId    String
+  orgId     String
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  orgId       String? // null = globale System-Rolle
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  org             Organization?    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique // z.B. "shift.create", "cms.page.edit"
+  description String?
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+  orgId  String // Rolle gilt pro Organisation
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, orgId])
+  @@index([orgId])
+  @@index([roleId])
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  orgId       String
+  email       String
+  roleId      String?
+  token       String           @unique
+  status      InvitationStatus @default(PENDING)
+  invitedById String?
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy User?        @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([orgId])
+  @@index([email])
+}
+
+// ---------------------------------------------------------------------------
+// DOMÄNE: APOTHEKEN-DIENSTPLAN
+// ---------------------------------------------------------------------------
+model Location {
+  id           String   @id @default(cuid())
+  orgId        String
+  name         String
+  address      String?
+  openingHours Json? // Wochenstruktur
+  isEmergency  Boolean  @default(false) // nimmt am Notdienst teil
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  org            Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees      Employee[]
+  shiftTemplates ShiftTemplate[]
+  shiftPlans     ShiftPlan[]
+  shifts         Shift[]
+  emergencyDuties EmergencyDuty[]
+  nightDuties    NightDuty[]
+
+  @@index([orgId])
+}
+
+model Employee {
+  id               String       @id @default(cuid())
+  orgId            String
+  locationId       String?
+  userId           String? // optional: nicht jeder Mitarbeiter ist Login-User
+  firstName        String
+  lastName         String
+  type             EmployeeType @default(SONSTIGE)
+  weeklyHoursTarget Int?        @default(0)
+  color            String?
+  active           Boolean      @default(true)
+  nightWorkRestricted Boolean   @default(false) // KV/MSchG: kein Nachtdienst 20-6 (z.B. Schwangerschaft)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+
+  org             Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location        Location?                @relation(fields: [locationId], references: [id])
+  user            User?                    @relation(fields: [userId], references: [id])
+  qualifications  EmployeeQualification[]
+  responsibilities EmployeeResponsibility[]
+  assignments     ShiftAssignment[]
+  availabilities  Availability[]
+  absences        Absence[]
+  emergencyDuties EmergencyDuty[]
+  nightDuties     NightDuty[]
+
+  @@index([orgId])
+  @@index([locationId])
+}
+
+model Qualification {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+
+  org      Organization            @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees EmployeeQualification[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model EmployeeQualification {
+  employeeId      String
+  qualificationId String
+
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  qualification Qualification @relation(fields: [qualificationId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, qualificationId])
+  @@index([qualificationId])
+}
+
+model Responsibility {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+
+  org      Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees EmployeeResponsibility[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model EmployeeResponsibility {
+  employeeId       String
+  responsibilityId String
+
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  responsibility Responsibility @relation(fields: [responsibilityId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, responsibilityId])
+  @@index([responsibilityId])
+}
+
+model ShiftTemplate {
+  id            String   @id @default(cuid())
+  orgId         String
+  locationId    String?
+  name          String
+  startTime     String // "08:00"
+  endTime       String // "16:00"
+  requiredRoles Json? // {APOTHEKER:1, PKA:2}
+  color         String?
+  createdAt     DateTime @default(now())
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location Location?    @relation(fields: [locationId], references: [id])
+  shifts   Shift[]
+
+  @@index([orgId])
+}
+
+model ShiftPlan {
+  id          String          @id @default(cuid())
+  orgId       String
+  locationId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  status      ShiftPlanStatus @default(DRAFT)
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  shifts   Shift[]
+
+  @@index([orgId])
+  @@index([locationId])
+}
+
+model Shift {
+  id              String   @id @default(cuid())
+  orgId           String
+  planId          String?
+  locationId      String
+  templateId      String?
+  date            DateTime
+  startTime       String
+  endTime         String
+  requiredHeadcount Int    @default(1)
+  requiredRoles   Json?    // AI-P3/D1: z.B. {"APOTHEKER":1} — rollenbasierte Pflichtbesetzung
+  version         Int      @default(0) // Arch-P1: Optimistic Locking gegen Last-Write-Wins
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  org         Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan        ShiftPlan?        @relation(fields: [planId], references: [id], onDelete: SetNull)
+  location    Location          @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  template    ShiftTemplate?    @relation(fields: [templateId], references: [id])
+  assignments ShiftAssignment[]
+
+  @@index([orgId])
+  @@index([locationId])
+  @@index([date])
+  @@index([orgId, locationId, date]) // Arch-P1: Kalender-Hauptquery
+}
+
+model ShiftAssignment {
+  id         String           @id @default(cuid())
+  shiftId    String
+  employeeId String
+  status     AssignmentStatus @default(ASSIGNED)
+  createdAt  DateTime         @default(now())
+
+  shift     Shift      @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  swapsFrom ShiftSwap[] @relation("FromAssignment")
+  swapsTo   ShiftSwap[] @relation("ToAssignment")
+
+  @@unique([shiftId, employeeId])
+  @@index([employeeId])
+}
+
+model Availability {
+  id         String           @id @default(cuid())
+  employeeId String
+  weekday    Int? // 0-6 für wiederkehrend
+  date       DateTime? // für einmalig
+  startTime  String
+  endTime    String
+  type       AvailabilityType @default(AVAILABLE)
+  recurring  Boolean          @default(false)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model Absence {
+  id         String        @id @default(cuid())
+  employeeId String
+  startDate  DateTime
+  endDate    DateTime
+  type       AbsenceType   @default(VACATION)
+  status     AbsenceStatus @default(REQUESTED)
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model EmergencyDuty {
+  id         String   @id @default(cuid())
+  locationId String
+  employeeId String?
+  date       DateTime
+
+  location Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@unique([locationId, date]) // P0: Race-Condition-Schutz (max. 1 Notdienst je Standort/Tag)
+  @@index([locationId])
+  @@index([date])
+}
+
+// Nachtdienst-Tool (VAAÖ): Pauschale je Dienst + Inanspruchnahmen pro Kunde.
+// Zugriff nur Apotheker:in + Leitung; jeder sieht nur eigene Dienste (Leitung alle).
+model NightDuty {
+  id             String    @id @default(cuid())
+  orgId          String
+  locationId     String?
+  employeeId     String
+  date           DateTime  // Kalendertag des Dienstbeginns
+  startTime      String    // "18:00"
+  endTime        String    // "08:00"
+  dutyType       NightDutyType @default(NACHT)
+  // Pauschale-Snapshot (zum Dienstzeitpunkt gültige Tarife — historisch stabil)
+  baseWage       Int       // Grundlohn in Cent (z.B. 13434)
+  nightBonus     Int       // Nachtarbeitszuschlag in Cent (z.B. 11747)
+  closedAt       DateTime? // gesetzt, wenn Dienst abgeschlossen
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location   Location?    @relation(fields: [locationId], references: [id])
+  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  customers  NightDutyCustomer[]
+
+  @@index([orgId, employeeId, date])
+  @@index([orgId, date])
+}
+
+// Eine Inanspruchnahme ("Kunde"-Knopfdruck) mit erkanntem Tarif-Snapshot.
+model NightDutyCustomer {
+  id           String   @id @default(cuid())
+  nightDutyId  String
+  at           DateTime @default(now()) // Zeitstempel des Knopfdrucks
+  tier         NightDutyTier // erkanntes Zeitfenster
+  baseAmount   Int      // Grundlohn-Anteil in Cent
+  bonusAmount  Int      // Zuschlag-Anteil in Cent (steuerbegünstigt)
+
+  nightDuty NightDuty @relation(fields: [nightDutyId], references: [id], onDelete: Cascade)
+
+  @@index([nightDutyId])
+}
+
+enum NightDutyType {
+  NACHT       // voller Nachtdienst 18-08
+  SAMSTAG     // Sa 12-18 Bereitschaft + Nacht
+  SONNFEIER   // Sonn-/Feiertag durchgehend
+}
+
+enum NightDutyTier {
+  TAG_332     // 3,32 € — So/Ftg 8-20, werktags 18-20, Sa 12-18
+  ABEND_652   // 6,52 € — 20-01 + 7-8
+  NACHT_1444  // 14,44 € — 1-7
+}
+
+model ShiftSwap {
+  id               String     @id @default(cuid())
+  orgId            String
+  fromAssignmentId String     // Schicht der/des Antragsteller:in (wird abgegeben)
+  toEmployeeId     String     // Kolleg:in, die tauschen/übernehmen soll
+  toAssignmentId   String?    // optional: Gegen-Schicht der Kolleg:in (echter Tausch); null = reine Übergabe
+  requestedById    String     // User, der den Antrag gestellt hat
+  note             String?
+  status           SwapStatus @default(REQUESTED)
+  decidedById      String?    // User, der entschieden hat
+  decidedAt        DateTime?
+  createdAt        DateTime   @default(now())
+
+  org            Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  fromAssignment ShiftAssignment  @relation("FromAssignment", fields: [fromAssignmentId], references: [id], onDelete: Cascade)
+  toAssignment   ShiftAssignment? @relation("ToAssignment", fields: [toAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@index([fromAssignmentId])
+}
+
+// Aufgabenmanagement: wiederkehrende oder einmalige Aufgaben, pro Person ODER
+// pro Schicht (wer Dienst hat). Erledigung wird je Tag festgehalten.
+model Task {
+  id                 String         @id @default(cuid())
+  orgId              String
+  title              String
+  description        String?
+  locationId         String? // optional auf Filiale beschränkt (Scalar, kein FK-Zwang)
+  assigneeType       TaskAssignee   @default(PERSON)
+  assigneeEmployeeId String? // wenn assigneeType = PERSON
+  time               String? // HH:MM, optional (z. B. "08:00")
+  recurrence         TaskRecurrence @default(DAILY)
+  weekday            Int? // 0=So .. 6=Sa (bei WEEKLY)
+  dueDate            DateTime? // bei ONCE
+  active             Boolean        @default(true)
+  createdById        String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  deletedAt          DateTime?
+
+  org         Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  completions TaskCompletion[]
+
+  @@index([orgId])
+}
+
+model TaskCompletion {
+  id                String   @id @default(cuid())
+  orgId             String
+  taskId            String
+  date              DateTime // der Tag (UTC-Mitternacht), für den erledigt wurde
+  completedByUserId String?
+  completedByName   String? // Snapshot für die Anzeige
+  completedAt       DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, date])
+  @@index([orgId, date])
+}
+
+// ---------------------------------------------------------------------------
+// CMS (org-gescoped: jede Apotheke hat eigene Inhalte)
+// ---------------------------------------------------------------------------
+model Page {
+  id        String     @id @default(cuid())
+  orgId     String
+  slug      String
+  title     String
+  status    PageStatus @default(DRAFT)
+  seo       Json?
+  parentId  String?
+  order     Int        @default(0)
+  locale    String     @default("de")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  org    Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  blocks ContentBlock[]
+
+  @@unique([orgId, slug, locale])
+  @@index([orgId])
+}
+
+model ContentBlock {
+  id    String @id @default(cuid())
+  pageId String
+  type  String // hero | richtext | image | imageText | gallery | cta | faq | ...
+  order Int    @default(0)
+  data  Json // block-spezifische Inhalte (WYSIWYG-HTML wird hier sanitized abgelegt)
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+}
+
+model ReusableBlock {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+  type  String
+  data  Json
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  orgId        String
+  url          String   @db.Text
+  alt          String?
+  mime         String?
+  width        Int?
+  height       Int?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  uploadedBy User?        @relation(fields: [uploadedById], references: [id])
+
+  @@index([orgId])
+}
+
+model Menu {
+  id    String @id @default(cuid())
+  orgId String
+  name  String
+  slug  String // main | footer | ...
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  items MenuItem[]
+
+  @@unique([orgId, slug])
+  @@index([orgId])
+}
+
+model MenuItem {
+  id       String  @id @default(cuid())
+  menuId   String
+  parentId String?
+  label    String
+  href     String?
+  pageId   String?
+  order    Int     @default(0)
+  target   String? // _self | _blank
+
+  menu     Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent   MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id])
+  children MenuItem[] @relation("MenuItemChildren")
+
+  @@index([menuId])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  orgId String
+  key   String
+  value Json
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, key])
+  @@index([orgId])
+}
+
+// ---------------------------------------------------------------------------
+// VOICE-AGENT + AUDIT
+// ---------------------------------------------------------------------------
+model AgentInteraction {
+  id           String                 @id @default(cuid())
+  orgId        String
+  userId       String
+  transcript   String                 @db.Text
+  parsedIntent String?
+  toolName     String?
+  payload      Json?
+  status       AgentInteractionStatus @default(PROPOSED)
+  createdAt    DateTime               @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String?
+  actorId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  actor User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([actorId])
+  @@index([orgId, createdAt]) // Arch-P1: Log-Listing
+}
+
+// Team-Chat: einfacher org-weiter Kanal (Mitarbeiter untereinander).
+// Bewusst schlicht — ein gemeinsamer Org-Kanal, keine DMs/Threads (Plan §17).
+model ChatMessage {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  teamId    String?  // null = Kanal "Allgemein" (org-weit); sonst Team-Kanal
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team?        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, teamId, createdAt])
+}
+
+// Frei anlegbares Team/Gruppe für den Chat (mit eigenen Mitgliedern).
+model Team {
+  id          String    @id @default(cuid())
+  orgId       String
+  name        String
+  createdById String // wer das Team angelegt hat (darf es verwalten)
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  org      Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members  TeamMember[]
+  messages ChatMessage[]
+
+  @@index([orgId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}

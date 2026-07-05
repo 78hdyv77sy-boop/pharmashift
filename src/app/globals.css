@@ -1,0 +1,208 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   PharmaShift Design-Tokens — "ruhig, übersichtlich, schlicht, modern"
+   Identität: gedecktes Apotheken-Grün auf papierwarmem Grund, eine Schrift
+   (Instrument Sans) mit klarer Gewichts-Hierarchie, Tabellenziffern für
+   alle Zeiten/Zahlen. Die eine Signatur: Wortmarke Pharma·Shift + ruhige
+   aktive Nav-Pille. Alles andere bleibt bewusst still.
+   ========================================================================= */
+
+@layer base {
+  :root {
+    /* Papierwarmer, minimal grünstichiger Grund */
+    --background: 100 20% 98.5%;
+    --foreground: 195 25% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 195 25% 13%;
+    /* Gedecktes Apotheken-Grün (weniger Türkis, mehr Ruhe) */
+    --primary: 158 42% 28%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 22% 94.5%;
+    --secondary-foreground: 195 22% 18%;
+    --muted: 140 14% 95%;
+    --muted-foreground: 200 10% 44%;
+    --accent: 152 26% 92%;
+    --accent-foreground: 158 45% 22%;
+    --destructive: 0 68% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 12% 89%;
+    --input: 150 12% 87%;
+    --ring: 158 42% 32%;
+    --radius: 0.625rem;
+  }
+  .dark {
+    --background: 200 18% 9%;
+    --foreground: 150 12% 92%;
+    --card: 200 16% 12%;
+    --card-foreground: 150 12% 92%;
+    --primary: 158 40% 44%;
+    --primary-foreground: 200 18% 8%;
+    --secondary: 200 12% 18%;
+    --secondary-foreground: 150 12% 92%;
+    --muted: 200 12% 17%;
+    --muted-foreground: 160 8% 62%;
+    --accent: 200 12% 20%;
+    --accent-foreground: 150 12% 92%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 12% 20%;
+    --input: 200 12% 22%;
+    --ring: 158 40% 44%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Instrument Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+    /* Zeiten & Zahlen stehen im Dienstplan überall untereinander:
+       Tabellenziffern app-weit = die stille Präzision dieses Tools. */
+    font-variant-numeric: tabular-nums;
+  }
+  h1 { letter-spacing: -0.025em; font-weight: 650; }
+  h2 { letter-spacing: -0.015em; font-weight: 600; }
+  h3 { letter-spacing: -0.01em; font-weight: 600; }
+
+  /* Sichtbarer Tastatur-Fokus, ohne Maus-Klicks zu umranden */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Karten: eine Stufe weicher als vorher, dafür konsequent */
+  .rounded-lg.border,
+  .rounded-xl.border {
+    box-shadow:
+      0 1px 2px 0 hsl(195 25% 13% / 0.04),
+      0 2px 6px -2px hsl(195 25% 13% / 0.05);
+  }
+
+  /* Tabellen: ruhige Kopfzeile, sanfter Zeilen-Hover */
+  thead th {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+  tbody tr {
+    transition: background-color 120ms ease;
+  }
+  tbody tr:hover {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  /* Signatur: Wortmarke Pharma·Shift */
+  .wordmark {
+    font-weight: 450;
+    letter-spacing: -0.02em;
+    font-size: 1.05rem;
+    color: hsl(var(--foreground));
+  }
+  .wordmark b {
+    font-weight: 750;
+  }
+  .wordmark .dot {
+    display: inline-block;
+    width: 0.42em;
+    height: 0.42em;
+    margin: 0 0.06em 0.06em 0.14em;
+    border-radius: 9999px;
+    background: hsl(var(--primary));
+    vertical-align: baseline;
+  }
+}
+
+@layer components {
+  /* Sidebar in blasser Glas-Optik: hauchzarter grüner Schleier, transluzent,
+     mit Weichzeichner — ruhig, aber erkennbar eigener Bereich. */
+  .sidebar-glass {
+    background:
+      linear-gradient(180deg, hsl(158 42% 28% / 0.05) 0%, hsl(158 42% 28% / 0.02) 40%, hsl(0 0% 100% / 0) 100%),
+      hsl(0 0% 100% / 0.55);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  }
+  .dark .sidebar-glass {
+    background:
+      linear-gradient(180deg, hsl(158 40% 44% / 0.07) 0%, hsl(158 40% 44% / 0.03) 40%, transparent 100%),
+      hsl(200 16% 12% / 0.55);
+  }
+
+  /* Menüpunkte heben sich beim Überfahren leicht an — sofort klar, wo man ist.
+     (prefers-reduced-motion wird global respektiert.) */
+  .nav-item {
+    transition: transform 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  }
+  .nav-item:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 2px 6px -2px hsl(195 25% 13% / 0.12);
+  }
+}
+
+@layer components {
+  /* Reibschalen-Chat-Knopf: der Pistill "mörsert" dezent beim Hover. */
+  .mortar-btn .pestle {
+    transform-origin: 13px 10px; /* Spitze des Pistills in der Schale */
+    transition: transform 200ms ease;
+  }
+  .mortar-btn:hover .pestle {
+    animation: moersern 0.9s ease-in-out infinite;
+  }
+  @keyframes moersern {
+    0%, 100% { transform: rotate(0deg); }
+    30% { transform: rotate(-9deg) translateY(0.6px); }
+    65% { transform: rotate(5deg); }
+  }
+}
+
+@layer components {
+  /* Rollen-Unterscheidung im Dienstplan (auf einen Blick erkennbar):
+     Apotheker:in = gedeckt-warm, matt (Verantwortung, Ruhe)
+     PKA = dezent-kühl, Glas-Schimmer (Dynamik, Support)
+     Andere Rollen = Standard-secondary. */
+  .chip-apotheker {
+    background: hsl(158 30% 90%);
+    color: hsl(158 45% 22%);
+    border: 1px solid hsl(158 28% 82%);
+  }
+  .dark .chip-apotheker {
+    background: hsl(158 25% 18%);
+    color: hsl(158 30% 80%);
+    border-color: hsl(158 20% 28%);
+  }
+  .chip-pka {
+    background: linear-gradient(135deg, hsl(210 30% 94%) 0%, hsl(200 24% 91%) 100%);
+    color: hsl(210 25% 25%);
+    border: 1px solid hsl(210 20% 85%);
+    /* Dezenter Glas-Schimmer */
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.55),
+      0 0.5px 1.5px -0.5px hsl(210 20% 50% / 0.12);
+  }
+  .dark .chip-pka {
+    background: linear-gradient(135deg, hsl(210 18% 20%) 0%, hsl(200 16% 22%) 100%);
+    color: hsl(210 18% 82%);
+    border-color: hsl(210 14% 30%);
+    box-shadow: inset 0 1px 0 0 hsl(0 0% 100% / 0.08);
+  }
+}

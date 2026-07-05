@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requestPasswordResetAction, resetPasswordAction } from "../actions";
 
-export default function ResetPage() {
+function ResetInner() {
   const token = useSearchParams().get("token");
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,5 +84,15 @@ export default function ResetPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+// Suspense-Umrandung (useSearchParams) für den Vercel-Build.
+export default function ResetPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-muted/30" />}>
+      <ResetInner />
+    </Suspense>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { verifyEmailAction } from "../actions";
 
-export default function VerifyPage() {
+function VerifyInner() {
   const token = useSearchParams().get("token");
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [text, setText] = useState("E-Mail wird bestätigt…");
@@ -40,5 +40,15 @@ export default function VerifyPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+// Suspense-Umrandung (useSearchParams) für den Vercel-Build.
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-muted/30" />}>
+      <VerifyInner />
+    </Suspense>
   );
 }

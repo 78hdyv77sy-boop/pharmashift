@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { registerAction, getInvitationAction, acceptInvitationAction } from "../actions";
 
-export default function RegisterPage() {
+function RegisterInner() {
   const inviteToken = useSearchParams().get("invite");
   const [invite, setInvite] = useState<{ email: string; orgName: string; userExists: boolean } | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -116,5 +116,15 @@ export default function RegisterPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+
+// Suspense-Umrandung (useSearchParams) für den Vercel-Build.
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-muted/30" />}>
+      <RegisterInner />
+    </Suspense>
   );
 }

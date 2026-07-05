@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function LoginPage() {
+function LoginForm() {
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/admin/dashboard";
   const [error, setError] = useState<string | null>(null);
@@ -72,5 +72,15 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Suspense-Umrandung nötig, weil LoginForm useSearchParams() nutzt
+// (sonst schlägt der Vercel-Build beim Vorab-Rendern der /login-Seite fehl).
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-muted/30" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

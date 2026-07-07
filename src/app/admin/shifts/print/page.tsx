@@ -64,7 +64,7 @@ export default async function ShiftsPrintPage({
       {weeks.map((w, wi) => (
         <div key={wi} className={wi === 1 ? "print:break-before-page" : ""}>
           <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{w.label}</h2>
-          <table className="w-full border-collapse text-sm">
+          <div className="overflow-x-auto"><table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-foreground/20 text-left">
                 <th className="w-28 py-2 pr-3">Tag</th>
@@ -109,7 +109,7 @@ export default async function ShiftsPrintPage({
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ))}
 

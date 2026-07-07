@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { FileText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { requireOrg } from "@/lib/tenant";
 import { getUserPermissions } from "@/lib/rbac";
@@ -147,6 +148,15 @@ export default async function NightDutyPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant="success">{d.customers.length} Kunden</Badge>
                     <span className="tabular-nums text-muted-foreground">+{formatEuro(sum)}</span>
+                    <a
+                      href={`/admin/nightduty/report/${d.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      title="Abrechnung als PDF öffnen"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> PDF
+                    </a>
                   </div>
                 </li>
               );

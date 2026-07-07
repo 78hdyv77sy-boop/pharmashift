@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Moon, Undo2, CheckCircle2, Loader2, Clock } from "lucide-react";
+import { Moon, Undo2, CheckCircle2, Loader2, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toaster";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -165,6 +165,14 @@ export function NightDutyLive({
           <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-center text-sm text-green-800">
             <CheckCircle2 className="mx-auto mb-1 h-5 w-5" /> Dienst abgeschlossen
           </div>
+          <a
+            href={`/admin/nightduty/report/${dutyId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <FileText className="h-4 w-4" /> Abrechnung als PDF
+          </a>
           <Button variant="outline" className="w-full" onClick={() => setBackfillOpen((o) => !o)} disabled={busy}>
             <Clock className="h-4 w-4" /> Vergessene Inanspruchnahme nachtragen
           </Button>

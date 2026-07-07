@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, ShieldCheck, FileText, Menu as MenuIcon, Image as ImageIcon, Building2, UserCog, Tags, CalendarRange, CalendarOff, CalendarCheck, LayoutTemplate, Siren, Moon, ScrollText, MessageCircle, Settings, ChevronRight, ArrowLeftRight, ListChecks, Gauge } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, FileText, Menu as MenuIcon, Image as ImageIcon, Building2, UserCog, Tags, CalendarRange, CalendarOff, CalendarCheck, LayoutTemplate, Siren, Moon, ScrollText, MessageCircle, Settings, ChevronRight, ArrowLeftRight, ListChecks, Gauge, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // UX-P1 / 13.2 X1: 2 Gruppen statt 16 flacher Einträge.
@@ -21,6 +21,7 @@ const PLANNING: NavItem[] = [
   { href: "/admin/emergency", label: "Notdienst", icon: Siren },
   { href: "/admin/nightduty", label: "Nachtdienst", icon: Moon },
   { href: "/admin/tasks", label: "Aufgaben", icon: ListChecks },
+  { href: "/admin/news", label: "Neuigkeiten", icon: Newspaper },
   { href: "/admin/chat", label: "Team-Chat", icon: MessageCircle },
 ];
 
@@ -109,9 +110,9 @@ function Group({ title, items, pathname, collapsible, storageKey, badges }: {
   );
 }
 
-export function SidebarNav({ pendingAbsences = 0, showNightDuty = false }: { pendingAbsences?: number; showNightDuty?: boolean }) {
+export function SidebarNav({ pendingAbsences = 0, unreadNews = 0, showNightDuty = false }: { pendingAbsences?: number; unreadNews?: number; showNightDuty?: boolean }) {
   const pathname = usePathname();
-  const badges = { "/admin/absences": pendingAbsences };
+  const badges = { "/admin/absences": pendingAbsences, "/admin/news": unreadNews };
   const planning = showNightDuty ? PLANNING : PLANNING.filter((i) => i.href !== "/admin/nightduty");
   return (
     <nav className="flex flex-col gap-4 p-3">

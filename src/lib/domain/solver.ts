@@ -22,6 +22,7 @@ export interface SolverEmployee {
   nightWorkRestricted?: boolean; // KV/MSchG: kein Nachtdienst 20-6 Uhr
   preferredDates: Set<string>; // PREFERRED
   presetHours: number; // bereits zugewiesene Stunden in der Woche (Bestand)
+  fairnessScore?: number; // 0..100 aus der Fairness-Engine (hohe Belastung = hoch); optional
 }
 
 export interface SolverAssignment {
@@ -133,6 +134,13 @@ function score(emp: SolverEmployee, shift: SolverShift, st: InternalState): { sc
     const we = st.weekendCount.get(emp.id) ?? 0;
     sc -= we * 8;
     if (we === 0) reasons.push("Wochenende fair");
+  }
+
+  // Fairness-Engine aktiv (User-Entscheid v0.63): historisch weniger belastete
+  // Personen werden bei sonst gleichwertigen Kandidaten bevorzugt.
+  if (emp.fairnessScore !== undefined) {
+    sc -= emp.fairnessScore * 0.15; // max -15 Punkte -> Tie-Breaker, kein Regelbrecher
+    if (emp.fairnessScore <= 33) reasons.push("bisher wenig belastet");
   }
 
   return { score: sc, reasons };

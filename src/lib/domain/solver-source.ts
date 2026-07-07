@@ -1,6 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { dateAtUTC, addDays, mondayOf } from "@/lib/domain/dates";
+import { rawScore, normalizeScores, isEveningEnd, isWeekendDow, type FairnessCounts } from "@/lib/domain/fairness";
+import { austrianHolidays } from "@/lib/domain/nightduty-tariffs";
 import { effectiveAvailability, type AvailabilityRule } from "@/lib/domain/availability-types";
 import { findHardConflicts, type SolverShift, type SolverEmployee } from "@/lib/domain/solver";
 import type { WeekConflict } from "@/lib/domain/solver-types";
@@ -58,6 +60,49 @@ export async function buildSolverInputs(orgId: string, locationId: string, week:
     rulesBy.set(av.employeeId, arr);
   }
 
+  // Fairness-Engine aktiv (v0.63): 90-Tage-Belastung je Person, normalisiert
+  // je Rolle (0..100) — fließt als Tie-Breaker in die Kandidatenwahl ein.
+  const from90 = dateAtUTC(addDays(weekStart, -90));
+  const [pastAsgs, pastNights] = await Promise.all([
+    prisma.shiftAssignment.findMany({
+      where: { shift: { orgId, deletedAt: null, date: { gte: from90, lt: start } } },
+      select: { employeeId: true, shift: { select: { date: true, endTime: true } } },
+    }),
+    prisma.nightDuty.findMany({
+      where: { orgId, date: { gte: from90, lt: start } },
+      select: { employeeId: true },
+    }),
+  ]);
+  const fCounts = new Map<string, FairnessCounts>();
+  const fEnsure = (id: string) => {
+    let c = fCounts.get(id);
+    if (!c) { c = { night: 0, holiday: 0, weekend: 0, evening: 0 }; fCounts.set(id, c); }
+    return c;
+  };
+  for (const nd of pastNights) fEnsure(nd.employeeId).night++;
+  const holiYears = new Map<number, Set<string>>();
+  for (const a of pastAsgs) {
+    const d = a.shift.date;
+    const y = d.getUTCFullYear();
+    if (!holiYears.has(y)) holiYears.set(y, austrianHolidays(y));
+    const c = fEnsure(a.employeeId);
+    if (isWeekendDow(d.getUTCDay())) c.weekend++;
+    if (isEveningEnd(a.shift.endTime)) c.evening++;
+    if (holiYears.get(y)!.has(d.toISOString().slice(0, 10))) c.holiday++;
+  }
+  const byType = new Map<string, { id: string; raw: number }[]>();
+  for (const e of employees) {
+    const raw = rawScore(fCounts.get(e.id) ?? { night: 0, holiday: 0, weekend: 0, evening: 0 });
+    const arr = byType.get(e.type) ?? [];
+    arr.push({ id: e.id, raw });
+    byType.set(e.type, arr);
+  }
+  const fScore = new Map<string, number>();
+  for (const arr of byType.values()) {
+    const norm = normalizeScores(arr.map((x) => x.raw));
+    arr.forEach((x, i) => fScore.set(x.id, norm[i]));
+  }
+
   const solverEmployees: SolverEmployee[] = employees.map((e) => {
     const unavailable = new Set<string>();
     const preferred = new Set<string>();
@@ -77,6 +122,7 @@ export async function buildSolverInputs(orgId: string, locationId: string, week:
       preferredDates: preferred,
       nightWorkRestricted: e.nightWorkRestricted,
       presetHours: 0, // Bestand DIESER Woche steckt bereits in assignedEmployeeIds
+      fairnessScore: fScore.get(e.id) ?? 0,
     };
   });
 

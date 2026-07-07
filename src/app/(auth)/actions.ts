@@ -13,6 +13,8 @@ import {
   sendVerificationEmail,
   sendPasswordResetEmail,
 } from "@/lib/email/resend";
+import { rateLimit, ipFromHeaders } from "@/lib/rate-limit";
+import { headers } from "next/headers";
 
 type ActionResult = { ok: boolean; error?: string; message?: string };
 
@@ -29,6 +31,12 @@ export async function registerAction(input: unknown): Promise<ActionResult> {
     return { ok: false, error: parsed.error.errors[0]?.message ?? "Ungültige Eingabe" };
   }
   const { name, email, password, orgName } = parsed.data;
+
+  // Rate-Limit gegen Registrierungs-Spam (Block B2): max 5 Versuche/10 Min je IP
+  const ip = ipFromHeaders(await headers());
+  if (!rateLimit(`register:ip:${ip}`, 5, 600_000).ok) {
+    return { ok: false, error: "Zu viele Versuche – bitte in ein paar Minuten erneut." };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { ok: false, error: "E-Mail bereits registriert" };

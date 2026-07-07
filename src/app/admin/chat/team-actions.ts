@@ -22,11 +22,19 @@ export async function listChannels(): Promise<Channel[]> {
     where: {
       orgId: ctx.orgId,
       deletedAt: null,
+      isDirect: false, // 1:1-DMs werden separat (nur eigene) geladen
       // Verwalter:innen sehen alle Teams, sonst nur die eigenen Mitgliedschaften
       ...(manageAll ? {} : { members: { some: { userId: ctx.userId } } }),
     },
     orderBy: { name: "asc" },
     select: { id: true, name: true, createdById: true },
+  });
+
+  // Eigene 1:1-DMs (privat, immer nur die eigenen Mitgliedschaften)
+  const dms = await prisma.team.findMany({
+    where: { orgId: ctx.orgId, deletedAt: null, isDirect: true, members: { some: { userId: ctx.userId } } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, members: { select: { userId: true, user: { select: { name: true, email: true } } } } },
   });
 
   const channels: Channel[] = [
@@ -36,8 +44,61 @@ export async function listChannels(): Promise<Channel[]> {
       name: t.name,
       canManage: manageAll || t.createdById === ctx.userId,
     })),
+    ...dms.map((d) => {
+      const other = d.members.find((m) => m.userId !== ctx.userId);
+      return {
+        teamId: d.id,
+        name: other?.user.name || other?.user.email || "Direktnachricht",
+        canManage: false,
+        isDirect: true,
+      };
+    }),
   ];
   return channels;
+}
+
+// Mögliche DM-Partner: alle Org-Mitglieder außer mir selbst.
+export async function listDmPartners(): Promise<{ userId: string; name: string }[]> {
+  const c = await requirePermission(PERMISSIONS.CHAT_USE);
+  const members = await prisma.membership.findMany({
+    where: { orgId: c.orgId, userId: { not: c.userId } },
+    select: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { user: { name: "asc" } },
+  });
+  return members.map((m) => ({ userId: m.user.id, name: m.user.name || m.user.email || "—" }));
+}
+
+// Öffnet (oder erstellt) die private 1:1-Unterhaltung mit einer Person.
+export async function openDirectChat(otherUserId: string): Promise<Result & { teamId?: string }> {
+  const c = await requirePermission(PERMISSIONS.CHAT_USE);
+  const ctx = ctxFrom(c);
+  if (!otherUserId || otherUserId === ctx.userId) return { ok: false, error: "Bitte eine andere Person wählen." };
+
+  const other = await prisma.membership.findFirst({ where: { orgId: ctx.orgId, userId: otherUserId }, select: { id: true } });
+  if (!other) return { ok: false, error: "Person nicht in dieser Organisation." };
+
+  // Existierende DM zwischen genau diesen beiden suchen
+  const existing = await prisma.team.findFirst({
+    where: {
+      orgId: ctx.orgId, deletedAt: null, isDirect: true,
+      AND: [
+        { members: { some: { userId: ctx.userId } } },
+        { members: { some: { userId: otherUserId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (existing) return { ok: true, teamId: existing.id };
+
+  const team = await prisma.$transaction(async (tx) => {
+    const t = await tx.team.create({ data: { orgId: ctx.orgId, name: "DM", isDirect: true, createdById: ctx.userId } });
+    await tx.teamMember.createMany({ data: [
+      { teamId: t.id, userId: ctx.userId },
+      { teamId: t.id, userId: otherUserId },
+    ] });
+    return t;
+  });
+  return { ok: true, teamId: team.id };
 }
 
 export async function createTeam(name: string): Promise<Result & { teamId?: string }> {
@@ -68,6 +129,11 @@ export async function createTeam(name: string): Promise<Result & { teamId?: stri
 }
 
 export async function renameTeam(teamId: string, name: string): Promise<Result> {
+  {
+    const c = await requirePermission(PERMISSIONS.CHAT_USE);
+    const t = await prisma.team.findFirst({ where: { id: teamId, orgId: c.orgId }, select: { isDirect: true } });
+    if (t?.isDirect) return { ok: false, error: "Direktnachrichten können nicht umbenannt werden." };
+  }
   const c = await requirePermission(PERMISSIONS.CHAT_USE);
   const ctx = ctxFrom(c);
 
@@ -90,6 +156,11 @@ export async function renameTeam(teamId: string, name: string): Promise<Result> 
 }
 
 export async function deleteTeam(teamId: string): Promise<Result> {
+  {
+    const c = await requirePermission(PERMISSIONS.CHAT_USE);
+    const t = await prisma.team.findFirst({ where: { id: teamId, orgId: c.orgId }, select: { isDirect: true } });
+    if (t?.isDirect) return { ok: false, error: "Direktnachrichten können nicht gelöscht werden." };
+  }
   const c = await requirePermission(PERMISSIONS.CHAT_USE);
   const ctx = ctxFrom(c);
 

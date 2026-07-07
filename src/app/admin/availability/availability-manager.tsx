@@ -126,7 +126,7 @@ export function AvailabilityManager({
       </div>
 
       <div className="rounded-lg border">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Wann</th>
@@ -153,7 +153,7 @@ export function AvailabilityManager({
               ))
             )}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   );

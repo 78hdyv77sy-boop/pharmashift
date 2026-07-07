@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/admin/command-palette";
 import { VoiceAgent } from "@/components/voice/voice-agent";
 import { ChatWidget } from "@/components/admin/chat-widget";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/admin/theme-toggle";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -53,6 +54,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     ? await prisma.absence.count({ where: { status: "REQUESTED", employee: { orgId: session.user.activeOrgId } } })
     : 0;
 
+  // Ungelesene Neuigkeiten (roter Punkt in der Navigation)
+  let unreadNews = 0;
+  if (session.user.activeOrgId) {
+    const orgIdN = session.user.activeOrgId;
+    const meEmp = await prisma.employee.findFirst({
+      where: { orgId: orgIdN, userId: session.user.id, deletedAt: null },
+      select: { locationId: true },
+    });
+    unreadNews = await prisma.post.count({
+      where: {
+        orgId: orgIdN,
+        deletedAt: null,
+        ...(meEmp?.locationId ? { OR: [{ locationId: null }, { locationId: meEmp.locationId }] } : {}),
+        reads: { none: { userId: session.user.id } },
+      },
+    });
+  }
+
   return (
     <Providers>
       <div className="flex min-h-screen">
@@ -62,17 +81,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Pharma<span className="dot" aria-hidden="true" /><b>Shift</b>
             </Link>
           </div>
-          <SidebarNav pendingAbsences={pendingAbsences} showNightDuty={showNightDuty} />
+          <SidebarNav pendingAbsences={pendingAbsences} unreadNews={unreadNews} showNightDuty={showNightDuty} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-14 items-center justify-between gap-3 border-b px-4 print:hidden">
             <div className="flex items-center gap-2">
-              <MobileNav pendingAbsences={pendingAbsences} showNightDuty={showNightDuty} />
+              <MobileNav pendingAbsences={pendingAbsences} unreadNews={unreadNews} showNightDuty={showNightDuty} />
               <OrgSwitcher orgs={orgs} activeOrgId={session.user.activeOrgId} />
             </div>
             <CommandPalette />
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               <span className="hidden text-sm text-muted-foreground sm:inline">{session.user.email}</span>
               <form
                 action={async () => {

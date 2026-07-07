@@ -38,7 +38,7 @@ export function PlanReview({
     if (!open) return;
     setLoading(true);
     setError(null);
-    generatePlanProposal(locationId, weekStart).then((res) => {
+    generatePlanProposal(locationId, weekStart).catch((e) => ({ ok: false as const, error: e instanceof Error ? e.message : "Unerwarteter Fehler." })).then((res) => {
       setLoading(false);
       if (!res.ok || !res.proposal) { setError(res.error ?? "Fehler"); return; }
       setTemplateWeek(res.proposal.templateWeekStart);

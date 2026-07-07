@@ -4,7 +4,7 @@ import * as React from "react";
 import { Send, Trash2, Loader2, Plus, Settings2 } from "lucide-react";
 import { useToast } from "@/components/ui/toaster";
 import { sendChatMessage, loadChatMessages, deleteChatMessage } from "@/app/admin/chat/actions";
-import { listChannels } from "@/app/admin/chat/team-actions";
+import { listChannels, listDmPartners, openDirectChat } from "@/app/admin/chat/team-actions";
 import { TeamManager } from "@/app/admin/chat/team-manager";
 import type { ChatMsg, Channel } from "@/app/admin/chat/types";
 
@@ -109,9 +109,10 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
                 c.teamId === activeTeamId ? "bg-primary text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/70"
               }`}
             >
-              {c.name}
+              {c.isDirect ? "@ " : ""}{c.name}
             </button>
           ))}
+          <DmStarter onOpened={(teamId) => { handleChanged({ newTeamId: teamId }); }} />
         </div>
         {activeChannel?.canManage && activeChannel.teamId && (
           <button
@@ -181,5 +182,42 @@ export function ChatPanel({ compact = false }: { compact?: boolean }) {
         <TeamManager team={manager.team} onClose={() => setManager(null)} onChanged={handleChanged} />
       )}
     </div>
+  );
+}
+
+
+// "+ Direktnachricht": Person wählen -> private 1:1-Unterhaltung öffnen/erstellen.
+function DmStarter({ onOpened }: { onOpened: (teamId: string) => void }) {
+  const [partners, setPartners] = React.useState<{ userId: string; name: string }[] | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  async function load() {
+    if (partners !== null) return;
+    setPartners(await listDmPartners().catch(() => []));
+  }
+
+  return (
+    <select
+      className="shrink-0 rounded-full border bg-background px-2 py-1 text-xs text-muted-foreground outline-none hover:bg-muted/50"
+      value=""
+      disabled={busy}
+      onFocus={load}
+      onClick={load}
+      onChange={async (e) => {
+        const uid = e.target.value;
+        if (!uid) return;
+        setBusy(true);
+        const res = await openDirectChat(uid).catch(() => ({ ok: false as const, error: "Fehler", teamId: undefined }));
+        setBusy(false);
+        if (res.ok && res.teamId) onOpened(res.teamId);
+      }}
+      aria-label="Direktnachricht starten"
+      title="Direktnachricht starten"
+    >
+      <option value="">＋ Direktnachricht</option>
+      {(partners ?? []).map((p) => (
+        <option key={p.userId} value={p.userId}>{p.name}</option>
+      ))}
+    </select>
   );
 }

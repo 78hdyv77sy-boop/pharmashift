@@ -8,7 +8,7 @@ import { SidebarNav } from "@/components/admin/sidebar-nav";
 // UX-P0 / Befund U1: Mobile hatte KEINE Navigation (Sidebar hidden md:block,
 // kein Burger). Dieses Slide-in-Panel behebt den Bug.
 
-export function MobileNav({ pendingAbsences = 0, showNightDuty = false }: { pendingAbsences?: number; showNightDuty?: boolean }) {
+export function MobileNav({ pendingAbsences = 0, unreadNews = 0, showNightDuty = false }: { pendingAbsences?: number; unreadNews?: number; showNightDuty?: boolean }) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
 

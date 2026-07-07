@@ -75,7 +75,7 @@ export function ImportClient() {
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">{rows.length} Zeile(n) erkannt – Vorschau (max. 10):</p>
           <div className="rounded-lg border">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                 <tr><th className="px-3 py-2">Vorname</th><th className="px-3 py-2">Nachname</th><th className="px-3 py-2">Typ</th><th className="px-3 py-2">Standort</th><th className="px-3 py-2">Std.</th></tr>
               </thead>
@@ -90,7 +90,7 @@ export function ImportClient() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       )}

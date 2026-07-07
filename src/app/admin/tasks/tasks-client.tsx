@@ -118,7 +118,7 @@ export function TasksClient({ today, instances, tasks, employees, locations, can
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => setTaskActive(t.id, !t.active).then(() => router.refresh())}>{t.active ? "Deaktivieren" : "Aktivieren"}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setTaskActive(t.id, !t.active).then(() => router.refresh()).catch(() => toast("Fehler beim Umschalten.", "error"))}>{t.active ? "Deaktivieren" : "Aktivieren"}</Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(t)} aria-label="Bearbeiten"><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Löschen"
                       onClick={async () => { if (await confirm({ title: "Aufgabe löschen?", description: `„${t.title}" wird entfernt.`, confirmText: "Löschen", destructive: true })) { const r = await deleteTask(t.id); if (!r.ok) toast(r.error ?? "Fehler", "error"); else { toast("Gelöscht.", "success"); router.refresh(); } } }}>

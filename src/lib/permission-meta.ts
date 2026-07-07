@@ -56,6 +56,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     group: "KI-Agent",
     items: [{ key: PERMISSIONS.AGENT_USE, label: "Voice-Agent nutzen" }],
   },
+  {
+    group: "Neuigkeiten",
+    items: [
+      { key: PERMISSIONS.NEWS_VIEW, label: "Neuigkeiten sehen" },
+      { key: PERMISSIONS.NEWS_POST, label: "Beiträge schreiben" },
+      { key: PERMISSIONS.NEWS_BROADCAST, label: "An alle Apotheken posten + Gelesen-Listen" },
+    ],
+  },
 ];
 
 export const PERMISSION_LABELS: Record<string, string> = Object.fromEntries(

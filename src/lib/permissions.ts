@@ -39,6 +39,10 @@ export const PERMISSIONS = {
   TASK_MANAGE: "task.manage", // Aufgaben anlegen/bearbeiten/löschen
   // Fairness-Engine (nur Anzeige)
   FAIRNESS_VIEW_ALL: "fairness.view_all", // alle Scores sehen (Leitung); sonst nur eigener
+  // News-Feed ("Schwarzes Brett")
+  NEWS_VIEW: "news.view",
+  NEWS_POST: "news.post",
+  NEWS_BROADCAST: "news.broadcast", // an ALLE Apotheken posten + alle Gelesen-Listen sehen
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -72,6 +76,9 @@ export const SYSTEM_ROLES: Record<string, PermissionKey[]> = {
     PERMISSIONS.TASK_VIEW,
     PERMISSIONS.TASK_MANAGE,
     PERMISSIONS.FAIRNESS_VIEW_ALL,
+    PERMISSIONS.NEWS_VIEW,
+    PERMISSIONS.NEWS_POST,
+    PERMISSIONS.NEWS_BROADCAST,
   ],
   Mitarbeiter: [
     PERMISSIONS.SHIFT_VIEW,
@@ -80,6 +87,8 @@ export const SYSTEM_ROLES: Record<string, PermissionKey[]> = {
     PERMISSIONS.AGENT_USE,
     PERMISSIONS.CHAT_USE,
     PERMISSIONS.TASK_VIEW,
+    PERMISSIONS.NEWS_VIEW,
+    PERMISSIONS.NEWS_POST,
   ],
-  Viewer: [PERMISSIONS.SHIFT_VIEW, PERMISSIONS.EMPLOYEE_VIEW, PERMISSIONS.CMS_PAGE_VIEW, PERMISSIONS.TASK_VIEW],
+  Viewer: [PERMISSIONS.SHIFT_VIEW, PERMISSIONS.EMPLOYEE_VIEW, PERMISSIONS.CMS_PAGE_VIEW, PERMISSIONS.TASK_VIEW, PERMISSIONS.NEWS_VIEW],
 };

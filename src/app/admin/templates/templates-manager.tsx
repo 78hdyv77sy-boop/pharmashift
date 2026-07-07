@@ -52,7 +52,7 @@ export function TemplatesManager({ rows, locations, canManage }: { rows: ShiftTe
       )}
 
       <div className="rounded-lg border">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Name</th>
@@ -85,7 +85,7 @@ export function TemplatesManager({ rows, locations, canManage }: { rows: ShiftTe
               ))
             )}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>

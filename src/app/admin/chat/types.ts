@@ -16,6 +16,7 @@ export interface Channel {
   teamId: string | null;
   name: string;
   canManage: boolean; // darf der aktuelle User dieses Team verwalten?
+  isDirect?: boolean; // 1:1-Direktnachricht
 }
 
 // Ein Org-Mitglied (Login-User) für die Mitglieder-Auswahl eines Teams.

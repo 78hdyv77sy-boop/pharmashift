@@ -17,7 +17,7 @@ function VerifyInner() {
       setText("Kein Token angegeben.");
       return;
     }
-    verifyEmailAction(token).then((res) => {
+    verifyEmailAction(token).catch(() => ({ ok: false, error: "Unerwarteter Fehler.", message: undefined as string | undefined })).then((res) => {
       if (res.ok) {
         setState("ok");
         setText(res.message ?? "E-Mail bestätigt.");

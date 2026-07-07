@@ -223,6 +223,7 @@ model Organization {
   teams         Team[]
   shiftSwaps    ShiftSwap[]
   tasks         Task[]
+  posts         Post[]
 }
 
 model Membership {
@@ -818,6 +819,7 @@ model Team {
   id          String    @id @default(cuid())
   orgId       String
   name        String
+  isDirect    Boolean   @default(false) // 1:1-Direktnachricht (genau 2 Mitglieder, privat)
   createdById String // wer das Team angelegt hat (darf es verwalten)
   createdAt   DateTime  @default(now())
   deletedAt   DateTime?
@@ -840,4 +842,108 @@ model TeamMember {
 
   @@unique([teamId, userId])
   @@index([userId])
+}
+
+// ============ NEWS-FEED ("Schwarzes Brett 2.0", v0.63) ============
+
+model Post {
+  id         String    @id @default(cuid())
+  orgId      String
+  authorId   String // User-Id
+  locationId String? // null = an ALLE Apotheken (nur mit NEWS_BROADCAST)
+  text       String
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  org         Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  attachments PostAttachment[]
+  reads       PostRead[]
+  comments    PostComment[]
+  poll        Poll?
+
+  @@index([orgId, createdAt])
+}
+
+model PostAttachment {
+  id     String @id @default(cuid())
+  orgId  String
+  postId String
+  name   String
+  mime   String
+  size   Int
+  data   Bytes
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model PostRead {
+  id     String   @id @default(cuid())
+  orgId  String
+  postId String
+  userId String
+  at     DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([orgId, userId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  orgId     String
+  postId    String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model Poll {
+  id             String    @id @default(cuid())
+  orgId          String
+  postId         String    @unique
+  question       String
+  allowCustom    Boolean   @default(false) // eigene Antworten erlaubt
+  showVotesToAll Boolean   @default(false) // sonst sehen nur Leitung/Autor:in wer wie stimmte
+  closedAt       DateTime?
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([orgId])
+}
+
+model PollOption {
+  id     String @id @default(cuid())
+  pollId String
+  label  String
+  order  Int    @default(0)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id         String   @id @default(cuid())
+  orgId      String
+  pollId     String
+  userId     String
+  optionId   String? // null bei eigener Antwort
+  customText String?
+  at         DateTime @default(now())
+
+  poll   Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@unique([pollId, userId])
+  @@index([pollId])
 }

@@ -10,6 +10,7 @@ import { dateAtUTC, addDays, todayISO, formatDayLabel, weekdayShort } from "@/li
 import { Badge } from "@/components/ui/badge";
 import { AbsenceInbox, type InboxAbsence } from "./absence-inbox";
 import { WeekOverview } from "./week-overview";
+import { NewsFeed } from "@/app/admin/news/news-feed";
 import { computeInsights } from "@/lib/domain/insights";
 import { getTasksForDate } from "../tasks/actions";
 import { TodayTasks } from "./today-tasks";
@@ -110,6 +111,18 @@ export default async function TodayPage() {
         <p className="text-sm text-muted-foreground">{weekdayShort(today)} {formatDayLabel(today)} · Ihr operativer Überblick.</p>
       </div>
 
+      {runningDuty && (
+        <Link
+          href="/admin/nightduty"
+          className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary bg-primary/[0.06] px-4 py-3 transition hover:bg-primary/[0.1]"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-primary">
+            <Moon className="h-5 w-5" /> Dein Nachtdienst läuft
+          </span>
+          <span className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">+ Kunde erfassen →</span>
+        </Link>
+      )}
+
       {/* Kompakter Wochen-Dienstplan-Überblick (eigene Zeile hervorgehoben) */}
       {!onboarding && <WeekOverview orgId={orgId} userId={session.user.id} />}
 
@@ -203,19 +216,15 @@ export default async function TodayPage() {
       </div>
 
       {/* Aufgaben heute (abhakbar) */}
-      {runningDuty && (
-        <Link
-          href="/admin/nightduty"
-          className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary bg-primary/[0.06] px-4 py-3 transition hover:bg-primary/[0.1]"
-        >
-          <span className="flex items-center gap-2 text-sm font-medium text-primary">
-            <Moon className="h-5 w-5" /> Dein Nachtdienst läuft
-          </span>
-          <span className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">+ Kunde erfassen →</span>
-        </Link>
+      {taskInstances.length > 0 && <TodayTasks today={today} instances={taskInstances} />}
+
+      {perms.has(PERMISSIONS.NEWS_VIEW) && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">Neuigkeiten</h2>
+          <NewsFeed compact canPost={false} myLocationId={null} />
+        </section>
       )}
 
-      {taskInstances.length > 0 && <TodayTasks today={today} instances={taskInstances} />}
 
       {/* Notdienst heute/morgen */}
       <section className="rounded-lg border p-4">

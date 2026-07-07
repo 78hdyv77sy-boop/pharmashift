@@ -19,7 +19,8 @@ function RegisterInner() {
 
   useEffect(() => {
     if (!inviteToken) return;
-    getInvitationAction(inviteToken).then((res) => {
+    getInvitationAction(inviteToken).catch(() => null).then((res) => {
+      if (!res) return;
       if (res.ok) setInvite({ email: res.email!, orgName: res.orgName!, userExists: res.userExists! });
       else setInviteError(res.error ?? "Einladung ungültig.");
     });

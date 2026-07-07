@@ -42,6 +42,9 @@ export async function canAccessChannel(ctx: ChatCtx, teamId: string | null): Pro
   if (teamId === null) return true; // Allgemein
   const team = await getTeam(ctx.orgId, teamId);
   if (!team) return false;
+  // 1:1-Direktnachrichten sind PRIVAT: nur die beiden Beteiligten —
+  // auch CHAT_MANAGE/Leitung liest hier bewusst NICHT mit.
+  if (team.isDirect) return isTeamMember(teamId, ctx.userId);
   if (await hasChatManage(ctx)) return true;
   return isTeamMember(teamId, ctx.userId);
 }

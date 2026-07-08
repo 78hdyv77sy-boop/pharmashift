@@ -93,7 +93,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <CommandPalette />
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <span className="hidden text-sm text-muted-foreground sm:inline">{session.user.email}</span>
+              <Link href="/admin/account" className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline" title="Mein Konto / Passwort ändern">{session.user.email}</Link>
               <form
                 action={async () => {
                   "use server";

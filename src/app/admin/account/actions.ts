@@ -8,9 +8,15 @@ type Result = { ok: boolean; error?: string; message?: string };
 
 // Eigenes Passwort ändern: aktuelles Passwort muss stimmen (Schutz,
 // falls jemand an einem offenen Gerät sitzt), neues min. 8 Zeichen.
-export async function changeOwnPassword(current: string, next: string, repeat: string): Promise<Result> {
+export async function changeOwnPassword(currentRaw: string, nextRaw: string, repeatRaw: string): Promise<Result> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Nicht angemeldet." };
+
+  // Unsichtbare Leer-/Steuerzeichen aus Copy-Paste abschneiden (häufige
+  // Fehlerquelle: "richtiges" Passwort schlägt trotzdem fehl).
+  const current = currentRaw.trim();
+  const next = nextRaw.trim();
+  const repeat = repeatRaw.trim();
 
   if (next.length < 8) return { ok: false, error: "Neues Passwort: mindestens 8 Zeichen." };
   if (next !== repeat) return { ok: false, error: "Die Wiederholung stimmt nicht überein." };

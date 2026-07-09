@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -14,6 +15,7 @@ function LoginForm() {
   const callbackUrl = params.get("callbackUrl") ?? "/admin/dashboard";
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,7 +60,18 @@ function LoginForm() {
                   Passwort vergessen?
                 </Link>
               </div>
-              <Input id="password" name="password" type="password" required autoComplete="current-password" />
+              <div className="relative">
+                <Input id="password" name="password" type={showPw ? "text" : "password"} required autoComplete="current-password" className="pr-9" />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showPw ? "Passwort verbergen" : "Passwort anzeigen"}
+                >
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>

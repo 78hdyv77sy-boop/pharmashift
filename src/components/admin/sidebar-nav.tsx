@@ -51,17 +51,12 @@ function Item({ item, active, badge }: { item: NavItem; active: boolean; badge?:
   return (
     <Link
       href={item.href}
-      className={cn(
-        "nav-item relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm",
-        active
-          ? "bg-primary/[0.08] font-medium text-primary before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-primary"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-      )}
+      className={cn("nav-item relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm", active && "nav-item-active font-medium")}
     >
       <Icon className="h-4 w-4 shrink-0" />
       {item.label}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-auto rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{badge}</span>
+        <span className="nav-badge ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold">{badge}</span>
       )}
     </Link>
   );

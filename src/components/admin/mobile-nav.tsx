@@ -42,7 +42,7 @@ export function MobileNav({ pendingAbsences = 0, unreadNews = 0, showNightDuty =
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <SidebarNav pendingAbsences={pendingAbsences} showNightDuty={showNightDuty} />
+              <SidebarNav pendingAbsences={pendingAbsences} unreadNews={unreadNews} showNightDuty={showNightDuty} />
             </div>
           </div>
         </div>
